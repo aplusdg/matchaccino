@@ -24,6 +24,13 @@ try {
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
   });
+  await page.route("https://formsubmit.co/**", (route) =>
+    route.abort("blockedbyclient"),
+  );
+  // Explicitly exercise the disconnected state without contacting a real inbox.
+  await page.route("**/email-settings.json", (route) =>
+    route.fulfill({ json: { formEndpoint: "" } }),
+  );
   const errors = [];
   const failed = [];
   const apiRequests = [];
@@ -65,6 +72,9 @@ try {
   assert.deepEqual(apiRequests, []);
   // Exercise the currently configured branch-based Pages entry as well.
   const legacy = await browser.newPage({ reducedMotion: "reduce" });
+  await legacy.route("https://formsubmit.co/**", (route) =>
+    route.abort("blockedbyclient"),
+  );
   const sourceIndex = await readFile("index.html", "utf8");
   await legacy.route("https://aplusdg.github.io/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -85,8 +95,30 @@ try {
   await legacy
     .getByRole("region", { name: "Today's daily inspiration" })
     .waitFor();
+  const connected = await browser.newPage({ reducedMotion: "reduce" });
+  let notification;
+  await connected.route("https://formsubmit.co/**", (route) => {
+    assert.equal(
+      route.request().url(),
+      "https://formsubmit.co/ajax/terrinobb@gmail.com",
+    );
+    notification = route.request().postDataJSON();
+    return route.fulfill({ json: { success: "true" } });
+  });
+  await connected.goto(url);
+  await connected.getByText("Email service configured").waitFor();
+  await connected.getByRole("button", { name: "May I please have…" }).click();
+  await connected
+    .getByRole("textbox")
+    .fill("Static artifact email test (mock provider).");
+  await connected
+    .getByRole("button", { name: "Send note", exact: true })
+    .click();
+  await connected.getByText("Your note is with Maddy.").waitFor();
+  assert.ok(notification.message.includes("Static artifact email test"));
+  assert.equal(notification._captcha, "false");
   console.log(
-    "Pages artifact passed: assets, 3D UI, forms, fortune, and both Actions and legacy branch publishing paths.",
+    "Pages artifact passed: assets, both publishing paths, disconnected drafts, and the configured FormSubmit delivery flow (mocked).",
   );
 } finally {
   await browser?.close();

@@ -1,5 +1,18 @@
 import { test, expect } from "@playwright/test";
+// Never let an automated browser test send real notifications.
+async function isolateEmail(page) {
+  await page.route("https://formsubmit.co/**", (route) =>
+    route.abort("blockedbyclient"),
+  );
+  await page.route("**/email-settings.json", (route) =>
+    route.fulfill({ json: { formEndpoint: "" } }),
+  );
+}
+test.beforeEach(async ({ page }) => {
+  await isolateEmail(page);
+});
 async function acceptApi(page) {
+  await isolateEmail(page);
   await page.route("**/api/status", (route) =>
     route.fulfill({ json: { emailConfigured: true } }),
   );
@@ -526,4 +539,45 @@ test("a failed diagonal curl unfolds the same editable note", async ({
     "Keep this note after the page unfolds.",
   );
   await expect(page.getByRole("textbox")).toBeEnabled();
+});
+
+test("FormSubmit activation preserves the page and a confirmed retry turns it away", async ({
+  page,
+}) => {
+  const endpoint = "https://formsubmit.co/ajax/terrinobb@gmail.com";
+  await page.route("**/email-settings.json", (route) =>
+    route.fulfill({ json: { formEndpoint: endpoint } }),
+  );
+  const sent = [];
+  await page.route("https://formsubmit.co/**", (route) => {
+    sent.push(route.request().postDataJSON());
+    return route.fulfill({
+      json:
+        sent.length === 1
+          ? {
+              success: "true",
+              message: "Please activate your form. Check your inbox.",
+            }
+          : { success: "true", message: "Form submitted successfully" },
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByText("Email service configured")).toBeVisible();
+  await page.getByRole("button", { name: "May I please have…" }).click();
+  await page
+    .getByRole("textbox", { name: "Your request to Maddy" })
+    .fill("A carrot cake, please.");
+  await page.getByRole("button", { name: "Send note", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Maddy needs to confirm the FormSubmit activation email first.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveValue("A carrot cake, please.");
+  await expect(page.locator(".turn-away")).toHaveCount(0);
+  await page.getByRole("button", { name: "Send note", exact: true }).click();
+  await expect(page.getByText("Your note is with Maddy.")).toBeVisible();
+  expect(sent).toHaveLength(2);
+  expect(sent[0].message).toEqual(sent[1].message);
 });

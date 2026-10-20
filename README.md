@@ -21,9 +21,19 @@ npm run build
 npm start
 ```
 
-Set `PORT` as needed. Run from the repository root. Use a persistent, single Node server with writable `.data/` storage for the SQLite submission ledger; back it up and do not expose it publicly. Multiple instances need a shared rate limiter and durable database. The app is not a static-only deployment. Live processes need restarting after environment restoration.
+Set `PORT` as needed. Run from the repository root. Use a persistent, single Node server with writable `.data/` storage for the SQLite submission ledger; back it up and do not expose it publicly. Multiple instances need a shared rate limiter and durable database. The self-hosted Resend mode needs this Node server; the default FormSubmit mode also works on static GitHub Pages. Live processes need restarting after environment restoration.
 
-## Easiest email setup: Formspree (no Node hosting or sending domain)
+## Default email: the same FormSubmit service as `aplusdg/coffee`
+
+The published website is configured in `public/email-settings.json` to use **`https://formsubmit.co/ajax/terrinobb@gmail.com`**, the same fixed recipient and AJAX service used by the working coffee repository. No account, API key, sending domain or Node hosting is required for this mode. The only other permitted FormSubmit recipient is **maddykittyw@gmail.com**; browser request fields cannot override the configured destination.
+
+FormSubmit may ask the inbox owner to activate a form or authorize a new page. If the website shows an activation message, open **terrinobb@gmail.com**, check Inbox and Spam, and click the FormSubmit confirmation link. Then retry the same request. Activation responses (even HTTP 200 with `success: true`) are never shown as a successful coffee or note request. Drafts remain intact. No Formspree signup is needed for the default setup.
+
+Success requires FormSubmit's explicit acceptance response. Acceptance is not a guarantee of final inbox delivery. A browser-local submission ledger suppresses confirmed repeats; uncertain network outcomes cannot be automatically resent. Check the inbox before creating a fresh request after an uncertain result. FormSubmit provides the managed backend and its own service policies and limits; the client-side honeypot and validation do not replace server-side abuse controls. The optional self-hosted Resend backend below additionally supports durable server-side deduplication and rate limiting.
+
+The browser uses the same captcha-free AJAX payload as the reference coffee site, with a honeypot, Sydney timestamps, request category or coffee details, and a request ID. See https://formsubmit.co/ for provider documentation. Local and CI tests mock email services and never send real mail.
+
+## Optional alternative: Formspree
 
 1. Sign up at **https://formspree.io/** and verify **maddykittyw@gmail.com** or **terrinobb@gmail.com** as your recipient inbox.
 2. Create a form and copy its public endpoint, such as `https://formspree.io/f/your-form-id`. Use the real generated ID, not this example.
@@ -63,7 +73,7 @@ npx playwright test
 
 If Chromium is already installed, skip the browser download and run `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npx playwright test`. On restricted cloud machines, use `npm ci --cache /tmp/matchaccino-npm-cache` if the default npm cache is not writable.
 
-Server tests use an injected email provider to exercise acceptance, validation, deduplication, retry, scheduling and failure paths without sending email. Browser tests verify the forms, draft preservation, gestures, daily result, and mobile layout; provider-success tests explicitly mock the API. Real delivery requires your email credentials and is not claimed by those tests.
+Server tests use an injected email provider to exercise acceptance, validation, deduplication, retry, scheduling and failure paths without sending email. Browser tests verify the forms, draft preservation, gestures, daily result, and mobile layout; provider-success tests explicitly mock the API. Real inbox delivery is not claimed by those tests. The default FormSubmit mode requires an activated recipient; only the optional Resend mode requires email credentials.
 
 ## Publish the website at GitHub Pages
 
@@ -73,9 +83,9 @@ The included `.github/workflows/pages.yml` builds and publishes the interface on
 
 `npm run test:pages` builds the static artifact and checks it under the repository subpath using Chromium. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` when using system Chromium.
 
-GitHub Pages only hosts static files. Without an email backend, the full interface, coffee animation, editable draft, and daily fortune work, while sending explicitly reports that the email service is not connected.
+GitHub Pages only hosts static files. The default FormSubmit integration supplies the email backend externally, so the complete interface and notifications work from Pages once the receiving inbox is activated. If all email endpoints are removed, sending explicitly reports that it is not connected.
 
-To enable email from Pages, deploy the existing Express app on a Node 24 host with persistent `.data/` storage, set the server-only Resend credentials and `APP_ORIGIN=https://aplusdg.github.io`, then set the repository **Actions variable** `VITE_API_BASE_URL` to the backend’s public HTTPS origin (for example, your own deployment URL, without a trailing slash). Re-run the Pages workflow. This variable is public; never put an API key in a `VITE_` variable. The backend only allows the configured frontend origin and Maddy’s two approved recipient addresses. Hosting the whole app together on a Node host remains supported and does not require `VITE_API_BASE_URL` or cross-origin configuration.
+To use the optional self-hosted Resend backend instead of FormSubmit, clear `formEndpoint` in `public/email-settings.json`, then deploy the existing Express app on a Node 24 host with persistent `.data/` storage, set the server-only Resend credentials and `APP_ORIGIN=https://aplusdg.github.io`, then set the repository **Actions variable** `VITE_API_BASE_URL` to the backend’s public HTTPS origin (for example, your own deployment URL, without a trailing slash). Re-run the Pages workflow. This variable is public; never put an API key in a `VITE_` variable. The backend only allows the configured frontend origin and Maddy’s two approved recipient addresses. Hosting the whole app together on a Node host remains supported and does not require `VITE_API_BASE_URL` or cross-origin configuration.
 
 ## Themes, reading and music
 

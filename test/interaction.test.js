@@ -124,3 +124,74 @@ test("unapproved managed URLs are rejected before any request", async () => {
     );
   }
 });
+
+test("FormSubmit accepts boolean or string confirmation and sends complete note details", async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => (globalThis.fetch = original));
+  for (const success of [true, "true"]) {
+    let sent;
+    globalThis.fetch = async (url, opts) => {
+      assert.equal(url, "https://formsubmit.co/ajax/terrinobb@gmail.com");
+      sent = JSON.parse(opts.body);
+      return { ok: true, status: 200, json: async () => ({ success }) };
+    };
+    const payload = note();
+    assert.equal(
+      (
+        await sendManagedRequest(
+          payload,
+          "https://formsubmit.co/ajax/terrinobb@gmail.com",
+          storage(),
+        )
+      ).accepted,
+      true,
+    );
+    assert.equal(sent._captcha, "false");
+    assert.equal(sent._template, "table");
+    assert.equal(sent._honey, "");
+    assert.match(sent.message, /A carrot cake, please/);
+    assert.ok(sent.message.includes(payload.id));
+    assert.match(sent._subject, /Matchaccino.*Note/);
+    assert.equal(sent.to, undefined);
+  }
+});
+
+test("FormSubmit activation never counts as delivery and permits retry after confirmation", async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => (globalThis.fetch = original));
+  let calls = 0;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () =>
+      ++calls === 1
+        ? {
+            success: "true",
+            message: "Please activate your form. Check your inbox.",
+          }
+        : { success: "true", message: "Form submitted successfully" },
+  });
+  const payload = note(),
+    store = storage();
+  const url = "https://formsubmit.co/ajax/terrinobb@gmail.com";
+  await assert.rejects(() => sendManagedRequest(payload, url, store), {
+    code: "EMAIL_ACTIVATION_REQUIRED",
+  });
+  assert.equal((await sendManagedRequest(payload, url, store)).accepted, true);
+  assert.equal((await sendManagedRequest(payload, url, store)).accepted, true);
+  assert.equal(calls, 2);
+});
+
+test("FormSubmit recipient allowlist rejects redirects and other inboxes", () => {
+  assert.equal(
+    isFormEndpoint("https://formsubmit.co/ajax/maddykittyw@gmail.com"),
+    true,
+  );
+  for (const url of [
+    "https://formsubmit.co/ajax/other@example.com",
+    "https://formsubmit.co/ajax/terrinobb@gmail.com?redirect=elsewhere",
+    "http://formsubmit.co/ajax/terrinobb@gmail.com",
+  ]) {
+    assert.equal(isFormEndpoint(url), false);
+  }
+});

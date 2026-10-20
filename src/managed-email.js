@@ -9,7 +9,12 @@ import {
   formatSydney,
 } from "./shared.js";
 const memory = new Map();
+const formSubmitEndpoints = [
+  "https://formsubmit.co/ajax/terrinobb@gmail.com",
+  "https://formsubmit.co/ajax/maddykittyw@gmail.com",
+];
 export const isFormEndpoint = (url) =>
+  formSubmitEndpoints.includes(url) ||
   /^https:\/\/formspree\.io\/f\/[a-zA-Z0-9]+$/.test(url || "");
 const uncertain =
   "Delivery could not be confirmed. Your draft is safe. Please check with Maddy before creating another request.";
@@ -93,6 +98,7 @@ export async function sendManagedRequest(
   const submittedAt = existing?.submittedAt || Date.now();
   const record = { status: "pending", fingerprint, submittedAt };
   save(payload.id, record, storage);
+  const formSubmit = formSubmitEndpoints.includes(endpoint);
   let response, result;
   try {
     response = await fetch(endpoint, {
@@ -106,7 +112,13 @@ export async function sendManagedRequest(
         subject,
         requested_by: "Kaichi",
         message: `Requested by: Kaichi\n${details}\n\nSubmission timestamp: ${formatTime(new Date(submittedAt))}\nRequest ID: ${payload.id}`,
-        _gotcha: payload.website || "",
+        ...(formSubmit
+          ? {
+              _template: "table",
+              _captcha: "false",
+              _honey: payload.website || "",
+            }
+          : { _gotcha: payload.website || "" }),
       }),
       signal: AbortSignal.timeout(25000),
     });
@@ -115,11 +127,36 @@ export async function sendManagedRequest(
     save(payload.id, { ...record, status: "uncertain" }, storage);
     throw new Error(uncertain);
   }
-  if (response.ok && result.ok === true) {
+  const providerMessage =
+    typeof result.message === "string" ? result.message : "";
+  // FormSubmit may return HTTP 200 and success=true for an activation email.
+  // Activation is a prerequisite, never proof that Kaichi's request was sent.
+  if (
+    formSubmit &&
+    /activat|confirm your email|check your (?:email|inbox)/i.test(
+      providerMessage,
+    )
+  ) {
+    save(payload.id, { ...record, status: "failed" }, storage);
+    const error = new Error(
+      "Maddy needs to confirm the FormSubmit activation email first. Your request has not been confirmed as sent. Please retry after confirmation.",
+    );
+    error.code = "EMAIL_ACTIVATION_REQUIRED";
+    throw error;
+  }
+  const accepted = formSubmit
+    ? result.success === true || result.success === "true"
+    : result.ok === true;
+  if (response.ok && accepted) {
     save(payload.id, { ...record, status: "accepted" }, storage);
     return { accepted: true, id: payload.id };
   }
-  if (response.status >= 400 && response.status < 500) {
+  if (
+    (formSubmit &&
+      response.ok &&
+      (result.success === false || result.success === "false")) ||
+    (response.status >= 400 && response.status < 500)
+  ) {
     save(payload.id, { ...record, status: "failed" }, storage);
     throw new Error(
       response.status === 429
