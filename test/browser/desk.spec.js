@@ -109,7 +109,7 @@ test("tear threshold cancels short drags and sends once after a deliberate drag"
   let box = await corner.boundingBox();
   await page.mouse.move(box.x + 15, box.y + 15);
   await page.mouse.down();
-  await page.mouse.move(box.x + 45, box.y + 15, { steps: 5 });
+  await page.mouse.move(box.x - 15, box.y - 15, { steps: 5 });
   await page.mouse.up();
   expect(sends).toBe(0);
   await expect(page.getByRole("textbox")).toHaveValue(
@@ -118,7 +118,8 @@ test("tear threshold cancels short drags and sends once after a deliberate drag"
   box = await corner.boundingBox();
   await page.mouse.move(box.x + 15, box.y + 15);
   await page.mouse.down();
-  await page.mouse.move(box.x + 150, box.y + 35, { steps: 12 });
+  await page.mouse.move(box.x - 145, box.y - 150, { steps: 12 });
+  await expect(page.locator(".page-fold polygon")).toBeVisible();
   await expect(page.getByText("Release to send")).toBeVisible();
   await page.mouse.up();
   await expect(page.getByText("Your note is with Maddy.")).toBeVisible();
@@ -266,7 +267,7 @@ test("touch corner drag sends a note without scrolling or duplicating", async ({
   for (let i = 1; i <= 12; i++)
     await session.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: [{ x: x + i * 11, y: y + i }],
+      touchPoints: [{ x: x - i * 14, y: y - i * 15 }],
     });
   await session.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
@@ -303,14 +304,14 @@ test("expanded writing can fold back to the desk without losing a saved note", a
   await page
     .getByRole("textbox")
     .fill("A longer thought, with room to breathe.\nAnd a second line.");
-  await expect(page.getByText("Saved on this device")).toBeVisible();
+  await expect(page.getByText("Draft saved · not sent")).toBeVisible();
   expect(
     (await page.getByRole("textbox").boundingBox()).height,
   ).toBeGreaterThan(170);
   await page.getByRole("button", { name: "Back to desk", exact: true }).click();
   await expect
     .poll(async () => (await page.locator(".notepad").boundingBox()).height)
-    .toBeLessThan(280);
+    .toBeLessThan(340);
   await expect(page.getByRole("textbox")).toHaveValue(
     "A longer thought, with room to breathe.\nAnd a second line.",
   );
@@ -335,4 +336,194 @@ test("fortune reveal and fold preserve keyboard focus", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Read today’s fortune", exact: true }),
   ).toBeFocused();
+});
+
+test("each opening chooses a different pastel palette and keeps comfortable text sizes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("heading", { name: "Coffee, your way" }).waitFor();
+  const first = await page.evaluate(() => ({
+    name: document.documentElement.dataset.theme,
+    bg: getComputedStyle(document.body).backgroundColor,
+    accent: getComputedStyle(document.querySelector(".button.primary"))
+      .backgroundColor,
+  }));
+  await page.reload();
+  await page.getByRole("heading", { name: "Coffee, your way" }).waitFor();
+  const second = await page.evaluate(() => ({
+    name: document.documentElement.dataset.theme,
+    bg: getComputedStyle(document.body).backgroundColor,
+    accent: getComputedStyle(document.querySelector(".button.primary"))
+      .backgroundColor,
+  }));
+  expect(second.name).not.toBe(first.name);
+  expect(second.bg).not.toBe(first.bg);
+  expect(second.accent).not.toBe(first.accent);
+  expect(
+    await page
+      .locator(".button.primary")
+      .evaluate((e) => parseFloat(getComputedStyle(e).fontSize)),
+  ).toBeGreaterThanOrEqual(14);
+  expect(
+    await page
+      .locator(".section-heading h2")
+      .first()
+      .evaluate((e) => parseFloat(getComputedStyle(e).fontSize)),
+  ).toBeGreaterThanOrEqual(30);
+});
+test("the usual hot cappuccino needs no extra choices; other coffee and ice options send correctly", async ({
+  page,
+}) => {
+  await acceptApi(page);
+  const requests = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith("/api/requests")) requests.push(r.postDataJSON());
+  });
+  await page.goto("/");
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await page.getByRole("button", { name: "Send my coffee request" }).click();
+  await expect(
+    page.getByText("Your coffee request is with Maddy."),
+  ).toBeVisible();
+  expect(requests[0]).toMatchObject({
+    coffeeType: "Cappuccino",
+    temperature: "Hot",
+    strength: "Regular",
+  });
+  await page.getByRole("button", { name: "Make another request" }).click();
+  await page
+    .getByRole("button", { name: "Fancy something different?" })
+    .click();
+  await page.getByLabel("Coffee", { exact: true }).selectOption("Latte");
+  await page.getByLabel("Temperature", { exact: true }).selectOption("Iced");
+  await page.getByLabel("Ice", { exact: true }).selectOption("Less ice");
+  await page.screenshot({
+    path: "/tmp/matchaccino-iced-coffee.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Send my coffee request" }).click();
+  await expect(
+    page.getByText("Your coffee request is with Maddy."),
+  ).toBeVisible();
+  expect(requests[1]).toMatchObject({
+    coffeeType: "Latte",
+    temperature: "Iced",
+    ice: "Less ice",
+  });
+  await page
+    .getByRole("button", { name: "Back to my usual hot cappuccino" })
+    .click();
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await expect(page.locator(".object-tag").first()).toContainText(
+    "HOT CAPPUCCINO",
+  );
+});
+test("music is silent on opening and creates real audio only after a click", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const Base = window.AudioContext;
+    window.__musicContexts = [];
+    window.__tones = 0;
+    window.AudioContext = class extends Base {
+      constructor(...args) {
+        super(...args);
+        window.__musicContexts.push(this);
+      }
+      createOscillator() {
+        window.__tones++;
+        return super.createOscillator();
+      }
+    };
+  });
+  await page.goto("/");
+  const play = page.getByRole("button", {
+    name: "Play gentle background music",
+  });
+  await expect(play).toHaveAttribute("aria-pressed", "false");
+  expect(await page.evaluate(() => window.__musicContexts.length)).toBe(0);
+  await play.click();
+  await expect(
+    page.getByRole("button", { name: "Pause background music" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => window.__musicContexts[0].state)).toBe(
+    "running",
+  );
+  expect(await page.evaluate(() => window.__tones)).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Pause background music" }).click();
+  await expect(
+    page.getByRole("button", { name: "Play gentle background music" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .poll(() => page.evaluate(() => window.__musicContexts[0].state))
+    .toBe("closed");
+});
+test("a connected managed form waits for provider acceptance before turning the page", async ({
+  page,
+}) => {
+  await page.route("**/email-settings.json", (route) =>
+    route.fulfill({
+      json: { formEndpoint: "https://formspree.io/f/testform" },
+    }),
+  );
+  let release;
+  const pending = new Promise((r) => (release = r));
+  let message;
+  await page.route("https://formspree.io/f/testform", async (route) => {
+    message = route.request().postDataJSON();
+    await pending;
+    await route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "May I please have…" }).click();
+  await page.getByRole("textbox").fill("A carrot cake.");
+  await page.getByRole("button", { name: "Send note", exact: true }).click();
+  await expect(
+    page.getByText("Sending with care…", { exact: true }).last(),
+  ).toBeVisible();
+  await expect(page.locator(".turn-away")).toHaveCount(0);
+  await expect(page.getByRole("textbox")).toHaveValue("A carrot cake.");
+  release();
+  await expect(page.getByText("Your note is with Maddy.")).toBeVisible();
+  expect(message.message).toContain("A carrot cake.");
+  expect(message.requested_by).toBe("Kaichi");
+  await expect(
+    page.getByRole("button", { name: "I want to review…" }),
+  ).toBeVisible({ timeout: 5000 });
+});
+test("a failed diagonal curl unfolds the same editable note", async ({
+  page,
+}) => {
+  await page.route("**/api/requests", (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: "The service is unavailable. Your draft is safe." },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "I want to review…" }).click();
+  await page
+    .getByRole("textbox")
+    .fill("Keep this note after the page unfolds.");
+  const corner = page.locator(".tear-corner");
+  await corner.hover();
+  const box = await corner.boundingBox();
+  await page.mouse.move(box.x + 24, box.y + 24);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 155, box.y - 155, { steps: 16 });
+  await expect(page.locator(".page-fold polygon")).toBeVisible();
+  await page.screenshot({
+    path: "/tmp/matchaccino-page-curl.png",
+    fullPage: true,
+  });
+  await page.mouse.up();
+  await expect(
+    page.getByText("The service is unavailable. Your draft is safe."),
+  ).toBeVisible();
+  await expect(page.locator(".page-fold")).toHaveCount(0);
+  await expect(page.getByRole("textbox")).toHaveValue(
+    "Keep this note after the page unfolds.",
+  );
+  await expect(page.getByRole("textbox")).toBeEnabled();
 });

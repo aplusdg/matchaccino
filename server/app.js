@@ -5,6 +5,10 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   categories,
+  coffeeTypes,
+  temperatures,
+  iceLevels,
+  coffeeDescription,
   prompts,
   sydneyInstant,
   formatSydney,
@@ -23,6 +27,16 @@ export function validate(body) {
     );
   if (body.website) throw new Error("Unable to accept this request.");
   if (body.kind === "coffee") {
+    const coffeeType = body.coffeeType ?? "Cappuccino";
+    const temperature = body.temperature ?? "Hot";
+    const ice =
+      temperature === "Iced" ? (body.ice ?? "Regular ice") : undefined;
+    if (
+      !coffeeTypes.includes(coffeeType) ||
+      !temperatures.includes(temperature) ||
+      (ice && !iceLevels.includes(ice))
+    )
+      throw new Error("Choose a valid coffee, temperature, and ice level.");
     if (!["Regular", "Strong"].includes(body.strength))
       throw new Error("Choose Regular or Strong coffee.");
     if (!["now", "scheduled"].includes(body.when))
@@ -34,6 +48,9 @@ export function validate(body) {
     }
     return {
       kind: "coffee",
+      coffeeType,
+      temperature,
+      ...(ice ? { ice } : {}),
       strength: body.strength,
       when: body.when,
       ...(instant
@@ -57,8 +74,8 @@ export function messageFor(data, submittedAt) {
     data.when === "scheduled" ? timestamp(new Date(data.instant)) : "Now";
   return data.kind === "coffee"
     ? {
-        subject: `[Matchaccino] Coffee — ${data.strength} — ${data.when === "now" ? "Now" : `${data.date} ${data.time} Sydney`}`,
-        text: `A coffee request from Kaichi\n\nRequested by: Kaichi\nCoffee: Hot Cappuccino\nStrength: ${data.strength}\nRequested preparation time: ${requestedTime}\nSubmission timestamp: ${timestamp(new Date(submittedAt))}\n\nSent with a little care, from Matchaccino.`,
+        subject: `[Matchaccino] Coffee — ${coffeeDescription(data.coffeeType, data.temperature)} — ${data.strength} — ${data.when === "now" ? "Now" : `${data.date} ${data.time} Sydney`}`,
+        text: `A coffee request from Kaichi\n\nRequested by: Kaichi\nCoffee: ${coffeeDescription(data.coffeeType, data.temperature)}${data.ice ? `\nIce: ${data.ice}` : ""}\nStrength: ${data.strength}\nRequested preparation time: ${requestedTime}\nSubmission timestamp: ${timestamp(new Date(submittedAt))}\n\nSent with a little care, from Matchaccino.`,
       }
     : {
         subject: `[Matchaccino] Note — ${data.category}`,

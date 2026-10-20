@@ -126,7 +126,15 @@ function Steam({ reduced }) {
     </group>
   );
 }
-function Cup({ strength, phase, reduced, rotation }) {
+function Cup({
+  strength,
+  phase,
+  reduced,
+  rotation,
+  coffeeType,
+  temperature,
+  ice,
+}) {
   const ref = useRef();
   const liquid = useRef();
   const foamSurface = useRef();
@@ -212,8 +220,10 @@ function Cup({ strength, phase, reduced, rotation }) {
       <mesh castShadow receiveShadow>
         <latheGeometry args={[profile, 80]} />
         <meshStandardMaterial
-          color="#efeee2"
-          roughness={0.24}
+          color={temperature === "Iced" ? "#dfe8e1" : "#efeee2"}
+          transparent={temperature === "Iced"}
+          opacity={temperature === "Iced" ? 0.38 : 1}
+          roughness={temperature === "Iced" ? 0.13 : 0.24}
           metalness={0.03}
         />
       </mesh>
@@ -224,7 +234,12 @@ function Cup({ strength, phase, reduced, rotation }) {
         rotation={[0, 0, -0.13]}
       >
         <torusGeometry args={[0.4, 0.12, 20, 64]} />
-        <meshStandardMaterial color="#eae9db" roughness={0.25} />
+        <meshStandardMaterial
+          color={temperature === "Iced" ? "#dfe8e1" : "#eae9db"}
+          transparent={temperature === "Iced"}
+          opacity={temperature === "Iced" ? 0.5 : 1}
+          roughness={0.25}
+        />
       </mesh>
       <mesh
         ref={liquid}
@@ -233,21 +248,29 @@ function Cup({ strength, phase, reduced, rotation }) {
       >
         <circleGeometry args={[0.768, 80]} />
         <meshStandardMaterial
-          color={phase === "espresso" ? "#492b1e" : "#8a5734"}
+          color={
+            phase === "espresso" || coffeeType === "Long black"
+              ? "#492b1e"
+              : temperature === "Iced"
+                ? "#b58b66"
+                : "#8a5734"
+          }
           roughness={0.27}
         />
       </mesh>
-      {phase !== "espresso" && (
-        <mesh
-          ref={foamSurface}
-          position={[0, 0.448, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={phase === "milk" ? [0.65, 0.65, 0.65] : [1, 1, 1]}
-        >
-          <circleGeometry args={[0.746, 80]} />
-          <meshStandardMaterial map={foam} roughness={0.66} />
-        </mesh>
-      )}
+      {phase !== "espresso" &&
+        coffeeType !== "Long black" &&
+        temperature !== "Iced" && (
+          <mesh
+            ref={foamSurface}
+            position={[0, 0.448, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={phase === "milk" ? [0.65, 0.65, 0.65] : [1, 1, 1]}
+          >
+            <circleGeometry args={[0.746, 80]} />
+            <meshStandardMaterial map={foam} roughness={0.66} />
+          </mesh>
+        )}
       {!pouring && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.458, 0]}>
           <torusGeometry args={[0.755, 0.014, 10, 80]} />
@@ -267,12 +290,41 @@ function Cup({ strength, phase, reduced, rotation }) {
             ]}
           />
           <meshStandardMaterial
-            color={phase === "milk" ? "#f8f0dc" : "#54321e"}
+            color={
+              phase === "milk"
+                ? coffeeType === "Long black"
+                  ? "#c6c8bd"
+                  : "#f8f0dc"
+                : "#54321e"
+            }
             roughness={0.35}
           />
         </mesh>
       )}
-      {!pouring && <Steam reduced={reduced} />}
+      {!pouring && temperature !== "Iced" && <Steam reduced={reduced} />}
+      {temperature === "Iced" &&
+        ice !== "No ice" &&
+        !pouring &&
+        [
+          [-0.28, 0.51, 0.1],
+          [0.1, 0.51, 0.28],
+          [0.28, 0.5, -0.2],
+          [-0.2, 0.5, -0.3],
+          [0.05, 0.57, -0.04],
+        ]
+          .slice(0, ice === "Less ice" ? 2 : 5)
+          .map((p, i) => (
+            <mesh key={i} position={p} rotation={[0.15, i * 0.8, 0.18]}>
+              <boxGeometry args={[0.28, 0.2, 0.26]} />
+              <meshPhysicalMaterial
+                color="#f1f8f2"
+                roughness={0.13}
+                transparent
+                opacity={0.78}
+                metalness={0.08}
+              />
+            </mesh>
+          ))}
     </group>
   );
 }
@@ -449,6 +501,9 @@ export default function DeskObject({
   drawing,
   drawn,
   reduced,
+  coffeeType = "Cappuccino",
+  temperature = "Hot",
+  ice = "Regular ice",
 }) {
   const [gl] = useState(availableGL);
   const rotation = useRef({ x: -0.18, y: 0 });
@@ -526,7 +581,17 @@ export default function DeskObject({
             <directionalLight position={[4, 3, -3]} intensity={0.7} />
             <Suspense fallback={null}>
               {kind === "cup" ? (
-                <Cup {...{ strength, phase, reduced, rotation }} />
+                <Cup
+                  {...{
+                    strength,
+                    phase,
+                    reduced,
+                    rotation,
+                    coffeeType,
+                    temperature,
+                    ice,
+                  }}
+                />
               ) : (
                 <Holder {...{ drawing, drawn, reduced }} />
               )}

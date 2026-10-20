@@ -3,6 +3,8 @@ import {
   ArrowUpRight,
   ArrowRight,
   ArrowLeft,
+  ChevronDown,
+  RotateCcw,
   Bean,
   Check,
   Clock3,
@@ -17,34 +19,20 @@ import {
   X,
 } from "lucide-react";
 import DeskObject from "./Objects.jsx";
+import NoteFeature from "./NoteFeature.jsx";
+import Music from "./Music.jsx";
+import { Status, SectionHeading } from "./UI.jsx";
 import { getEmailStatus, sendRequest } from "./api.js";
 import {
-  categories,
+  coffeeTypes,
+  temperatures,
+  iceLevels,
+  coffeeDescription,
   dailyFortune,
   formatSydney,
-  prompts,
   sydneyInstant,
   sydneyParts,
 } from "./shared.js";
-const getSaved = () => {
-  try {
-    const draft = JSON.parse(
-      localStorage.getItem("matchaccino-note") || "null",
-    );
-    if (
-      !draft ||
-      typeof draft.text !== "string" ||
-      draft.text.length > 3000 ||
-      ![null, 0, 1, 2].includes(draft.prompt)
-    )
-      return null;
-    if (typeof draft.id !== "string" || !/^[a-f0-9-]{36}$/i.test(draft.id))
-      return null;
-    return draft;
-  } catch {
-    return null;
-  }
-};
 const newId = () => crypto.randomUUID();
 function useReducedMotion() {
   const [value, set] = useState(
@@ -58,49 +46,12 @@ function useReducedMotion() {
   }, []);
   return value;
 }
-function Status({ state, error, success }) {
-  return (
-    <div className={`feedback ${state}`} role="status" aria-live="polite">
-      {state === "success" ? (
-        <>
-          <Check size={14} />
-          {success}
-        </>
-      ) : state === "error" ? (
-        error
-      ) : state === "sending" ? (
-        <>
-          <Loader2 size={13} className="spin" />
-          Sending with care…
-        </>
-      ) : null}
-    </div>
-  );
-}
-function SectionHeading({ number, title, subtitle }) {
-  return (
-    <div className="section-heading">
-      <span className="section-number">
-        {number}
-        <span />
-      </span>
-      <h2
-        id={
-          number === "01"
-            ? "coffee-title"
-            : number === "02"
-              ? "note-title"
-              : "fortune-title"
-        }
-      >
-        {title}
-      </h2>
-      <p>{subtitle}</p>
-    </div>
-  );
-}
-function CoffeeFeature({ reduced }) {
+function CoffeeFeature({ reduced, emailReady }) {
   const [strength, setStrength] = useState("Regular");
+  const [coffeeType, setCoffeeType] = useState("Cappuccino");
+  const [temperature, setTemperature] = useState("Hot");
+  const [ice, setIce] = useState("Regular ice");
+  const [customizing, setCustomizing] = useState(false);
   const [phase, setPhase] = useState("idle");
   const [prepared, setPrepared] = useState(false);
   const [when, setWhen] = useState("now");
@@ -148,6 +99,9 @@ function CoffeeFeature({ reduced }) {
     try {
       await sendRequest({
         kind: "coffee",
+        coffeeType,
+        temperature,
+        ice: temperature === "Iced" ? ice : undefined,
         strength,
         when,
         date: when === "scheduled" ? date : undefined,
@@ -177,18 +131,109 @@ function CoffeeFeature({ reduced }) {
         subtitle="A familiar favourite. A little extra care."
       />
       <div className="coffee-stage">
-        <DeskObject kind="cup" {...{ strength, phase, reduced }} />
+        <DeskObject
+          kind="cup"
+          {...{ strength, phase, reduced, coffeeType, temperature, ice }}
+        />
         <span className="object-tag">
           <span className={`tiny-dot ${pouring ? "brewing" : ""}`} />
           {phase === "espresso"
             ? "ESPRESSO, POURED SLOWLY"
             : phase === "milk"
-              ? "A LITTLE MILK & FOAM"
-              : "HOT CAPPUCCINO"}
+              ? coffeeType === "Long black"
+                ? "WATER, THEN A MOMENT TO PAUSE"
+                : "A LITTLE MILK & FOAM"
+              : coffeeDescription(coffeeType, temperature).toUpperCase()}
         </span>
-        <span className="rotation-hint">a little drag, a different angle</span>
+        <button
+          type="button"
+          className="change-coffee"
+          aria-expanded={customizing}
+          aria-controls="coffee-options"
+          disabled={busy || pouring}
+          onClick={() => setCustomizing(!customizing)}
+        >
+          {customizing ? "Keep it simple" : "Fancy something different?"}
+          <ChevronDown size={14} />
+        </button>
       </div>
       <form className="coffee-form" onSubmit={submit}>
+        {customizing && (
+          <fieldset
+            id="coffee-options"
+            className="coffee-options"
+            disabled={busy || pouring}
+          >
+            <legend>A little change of taste</legend>
+            <label>
+              Coffee
+              <select
+                aria-label="Coffee"
+                value={coffeeType}
+                onChange={(e) => {
+                  setCoffeeType(e.target.value);
+                  setPhase("idle");
+                  setPrepared(false);
+                  reset();
+                }}
+              >
+                {coffeeTypes.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Temperature
+              <select
+                aria-label="Temperature"
+                value={temperature}
+                onChange={(e) => {
+                  setTemperature(e.target.value);
+                  setPhase("idle");
+                  setPrepared(false);
+                  reset();
+                }}
+              >
+                {temperatures.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            {temperature === "Iced" && (
+              <label className="ice-options">
+                Ice
+                <select
+                  aria-label="Ice"
+                  value={ice}
+                  onChange={(e) => {
+                    setIce(e.target.value);
+                    reset();
+                  }}
+                >
+                  {iceLevels.map((i) => (
+                    <option key={i}>{i}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="button"
+              className="restore-default"
+              onClick={() => {
+                setCoffeeType("Cappuccino");
+                setTemperature("Hot");
+                setIce("Regular ice");
+                setStrength("Regular");
+                setCustomizing(false);
+                setPhase("idle");
+                setPrepared(false);
+                reset();
+              }}
+            >
+              <RotateCcw size={12} /> Back to my usual hot cappuccino
+            </button>
+          </fieldset>
+        )}
         <fieldset disabled={busy || pouring}>
           <legend>How do you like it?</legend>
           <div className="segmented strength">
@@ -231,7 +276,9 @@ function CoffeeFeature({ reduced }) {
           {phase === "espresso"
             ? "A little espresso…"
             : phase === "milk"
-              ? "Milk, foam, and a little magic…"
+              ? coffeeType === "Long black"
+                ? "A little water, a perfect finish…"
+                : "Milk, foam, and a little magic…"
               : prepared
                 ? "Made just the way you like it"
                 : "Make a little coffee"}
@@ -340,302 +387,14 @@ function CoffeeFeature({ reduced }) {
             Make another request
           </button>
         )}
-        <p className="fine-print">
-          Straight to Maddy, with your preferred time.
+        <p
+          className={`fine-print ${emailReady === false ? "connection-notice" : ""}`}
+        >
+          {emailReady === false
+            ? "Email is not connected yet. Requests cannot be sent."
+            : "Straight to Maddy, with your preferred time."}
         </p>
       </form>
-    </section>
-  );
-}
-function NoteFeature({ reduced }) {
-  const saved = useRef(getSaved());
-  const [prompt, setPrompt] = useState(saved.current?.prompt ?? null);
-  const [text, setText] = useState(saved.current?.text || "");
-  const [editing, setEditing] = useState(false);
-  const [state, setState] = useState("idle");
-  const [error, setError] = useState("");
-  const [tear, setTear] = useState(0);
-  const [flying, setFlying] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
-  const [honey, setHoney] = useState("");
-  const id = useRef(saved.current?.id || newId());
-  const locked = useRef(false);
-  const input = useRef();
-  const drag = useRef(null);
-  const timer = useRef();
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "matchaccino-note",
-        JSON.stringify({ prompt, text, id: id.current }),
-      );
-      setDraftSaved(true);
-    } catch {
-      setDraftSaved(false);
-    }
-  }, [prompt, text, state]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const choose = (i) => {
-    setPrompt(i);
-    setEditing(true);
-    setState("idle");
-    id.current = newId();
-    setTimeout(() => input.current?.focus(), 80);
-  };
-  const submit = async () => {
-    if (locked.current || state === "success") return;
-    if (prompt === null || !text.trim()) {
-      setError("Choose an opening and add a little detail before sending.");
-      setState("error");
-      setTear(0);
-      input.current?.focus();
-      return;
-    }
-    locked.current = true;
-    setState("sending");
-    setTear(0);
-    try {
-      await sendRequest({
-        kind: "note",
-        category: categories[prompt],
-        text: text.trim(),
-        id: id.current,
-        website: honey,
-      });
-      setFlying(true);
-      setState("success");
-      timer.current = setTimeout(
-        () => {
-          setText("");
-          setPrompt(null);
-          setEditing(false);
-          setFlying(false);
-          id.current = newId();
-          locked.current = false;
-        },
-        reduced ? 50 : 1050,
-      );
-    } catch (e) {
-      setError(
-        e.name === "TimeoutError"
-          ? "That took a little too long. Your note is saved. Please retry."
-          : e.message,
-      );
-      setState("error");
-      setFlying(false);
-      locked.current = false;
-    }
-  };
-  const busy = state === "sending" || flying;
-  return (
-    <section
-      className={`feature note-feature ${editing ? "editing" : ""}`}
-      aria-labelledby="note-title"
-    >
-      <SectionHeading
-        number="02"
-        title="Leave it with Maddy"
-        subtitle="Big ideas or small things. I’m here."
-      />
-      <div className="notepad-stage">
-        <span className="paper-shadow" />
-        <div
-          className={`notepad ${editing ? "is-editing" : ""} ${flying ? "fly-away" : ""}`}
-          style={{
-            "--tear": `${tear}px`,
-            "--tear-angle": `${-1 + tear * 0.012}deg`,
-          }}
-          onClick={() => setEditing(true)}
-        >
-          <div className="binding">
-            {Array.from({ length: 13 }, (_, i) => (
-              <i key={i} />
-            ))}
-          </div>
-          <div className="paper-head">
-            <span>A NOTE FOR MADDY</span>
-            <Feather size={14} />
-          </div>
-          <div className="paper-date">
-            {formatSydney(new Date(), { day: "2-digit", month: "short" })}
-          </div>
-          <div className="writing-area">
-            {prompt === null ? (
-              <div className="prompts">
-                {prompts.map((p, i) => (
-                  <button type="button" key={p} onClick={() => choose(i)}>
-                    {p}
-                    <ArrowUpRight size={16} />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="back-prompt"
-                  disabled={busy}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPrompt(null);
-                  }}
-                >
-                  <ArrowLeft size={11} /> Change opening
-                </button>
-                <p className="selected-prompt">{prompts[prompt]}</p>
-                <textarea
-                  ref={input}
-                  aria-label="Your request to Maddy"
-                  placeholder="A little detail goes a long way…"
-                  maxLength={3000}
-                  value={text}
-                  disabled={busy}
-                  onFocus={() => setEditing(true)}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    id.current = newId();
-                    if (state !== "sending") setState("idle");
-                  }}
-                />
-                <span className="character-count">{text.length} / 3000</span>
-              </>
-            )}
-          </div>
-          <div className="paper-bottom">
-            <span>
-              {prompt === null
-                ? "Something on your mind?"
-                : "Leave the details with me."}
-            </span>
-            <Heart size={13} />
-          </div>
-          <button
-            type="button"
-            className="tear-corner"
-            aria-label="Drag paper corner to send, or press Enter to send note"
-            disabled={busy}
-            onClick={(e) => {
-              if (e.detail === 0) submit();
-            }}
-            onPointerDown={(e) => {
-              e.preventDefault();
-              drag.current = { x: e.clientX, y: e.clientY };
-              e.currentTarget.setPointerCapture(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              if (drag.current)
-                setTear(
-                  Math.min(
-                    150,
-                    Math.max(
-                      0,
-                      e.clientX -
-                        drag.current.x +
-                        (e.clientY - drag.current.y) * 0.5,
-                    ),
-                  ),
-                );
-            }}
-            onPointerUp={() => {
-              if (drag.current) {
-                drag.current = null;
-                if (tear >= 100) submit();
-                else setTear(0);
-              }
-            }}
-            onPointerCancel={() => {
-              drag.current = null;
-              setTear(0);
-            }}
-          >
-            <span />
-            <ArrowUpRight size={14} />
-          </button>
-        </div>
-        <div className={`tear-instruction ${tear >= 100 ? "threshold" : ""}`}>
-          <span className="gesture-line" />
-          <span>
-            {tear >= 100
-              ? "Release to send"
-              : tear > 0
-                ? "A little further…"
-                : busy
-                  ? "Sending with care…"
-                  : "Tear to send"}
-          </span>
-          <span className="gesture-line" />
-        </div>
-        {tear > 0 && (
-          <div
-            className="tear-progress"
-            role="progressbar"
-            aria-label="Paper tear distance"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.min(100, Math.round(tear))}
-          >
-            <i style={{ width: `${Math.min(100, tear)}%` }} />
-          </div>
-        )}
-      </div>
-      <div className="note-bottom">
-        {prompt !== null && (
-          <div className="draft-tools">
-            <span>
-              {draftSaved && text ? (
-                <>
-                  <Check size={11} /> Saved on this device
-                </>
-              ) : (
-                "Your space to think."
-              )}
-            </span>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setEditing(!editing);
-                if (!editing) input.current?.focus();
-              }}
-            >
-              {editing ? "Back to desk" : "Keep writing"}
-            </button>
-          </div>
-        )}
-        <p>
-          A thought, a task, a tiny favour.
-          <br />
-          Put it on paper. I’ll take it from here.
-        </p>
-        <button
-          type="button"
-          className="button secondary"
-          onClick={submit}
-          disabled={busy}
-        >
-          {busy ? (
-            <Loader2 size={15} className="spin" />
-          ) : (
-            <Feather size={15} />
-          )}{" "}
-          Send note
-          <ArrowUpRight size={15} />
-        </button>
-        <label className="honey" aria-hidden="true">
-          Leave empty
-          <input
-            tabIndex={-1}
-            value={honey}
-            onChange={(e) => setHoney(e.target.value)}
-          />
-        </label>
-        <Status
-          state={state}
-          error={error}
-          success="Your note is with Maddy."
-        />
-        <p className="fine-print">Just between your desk and mine.</p>
-      </div>
     </section>
   );
 }
@@ -853,11 +612,14 @@ export default function App() {
           <Sprout size={22} strokeWidth={1.3} />
           <span>A LITTLE HELP. A LITTLE MAGIC.</span>
         </a>
-        <div className="today">
-          <Sun size={15} />
-          <span>{formatSydney(now, { weekday: "short" })}</span>
-          <span className="topbar-divider" />
-          <span>SYDNEY</span>
+        <div className="header-utilities">
+          <Music />
+          <div className="today">
+            <Sun size={15} />
+            <span>{formatSydney(now, { weekday: "short" })}</span>
+            <span className="topbar-divider" />
+            <span>SYDNEY</span>
+          </div>
         </div>
       </header>
       <main id="main">
@@ -882,8 +644,8 @@ export default function App() {
           </div>
         </div>
         <div className="desk">
-          <CoffeeFeature reduced={reduced} />
-          <NoteFeature reduced={reduced} />
+          <CoffeeFeature reduced={reduced} emailReady={emailReady} />
+          <NoteFeature reduced={reduced} emailReady={emailReady} />
           <FortuneFeature now={now} reduced={reduced} />
         </div>
         <div className="desk-note">
@@ -901,7 +663,7 @@ export default function App() {
           className={`service-status ${emailReady === false ? "unconfigured" : ""}`}
           title={
             emailReady === false
-              ? "Set RESEND_API_KEY and EMAIL_FROM on the server to enable coffee and note requests."
+              ? "Sending is not connected yet. Drafts stay on this device and are not emailed."
               : undefined
           }
         >
@@ -909,7 +671,7 @@ export default function App() {
           {emailReady === null
             ? "Checking the little details"
             : emailReady
-              ? "Your desk is connected"
+              ? "Email service configured"
               : "Email setup needed"}
         </span>
       </footer>

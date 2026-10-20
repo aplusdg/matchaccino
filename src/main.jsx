@@ -1,3 +1,4 @@
+import { applyTheme } from "./theme.js";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/dm-sans/latin-400.css";
@@ -10,4 +11,5 @@ import "@fontsource/allura/latin-400.css";
 import "@fontsource/caveat/latin-400.css";
 import App from "./App.jsx";
 import "./style.css";
+applyTheme();
 createRoot(document.getElementById("root")).render(<App />);

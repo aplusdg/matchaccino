@@ -254,3 +254,19 @@ test("a configured Pages origin can preflight and submit; other origins stay blo
   assert.equal(denied.status, 403);
   assert.equal(denied.headers.get("access-control-allow-origin"), null);
 });
+
+test("custom coffee details and ice are validated and included in the email", async (t) => {
+  const f = await fixture(t);
+  const result = await f.post(
+    coffee({ coffeeType: "Latte", temperature: "Iced", ice: "Less ice" }),
+  );
+  assert.equal(result.status, 200);
+  assert.match(f.calls[0].message.text, /Coffee: Iced Latte/);
+  assert.match(f.calls[0].message.text, /Ice: Less ice/);
+  for (const payload of [
+    coffee({ coffeeType: "Unknown" }),
+    coffee({ temperature: "Frozen" }),
+    coffee({ temperature: "Iced", ice: "Unlimited" }),
+  ])
+    assert.equal((await f.post(payload)).status, 400);
+});

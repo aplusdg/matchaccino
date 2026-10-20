@@ -5,6 +5,12 @@ export const prompts = [
   "May I please have…",
 ];
 export const categories = ["Review", "IT Support", "Request"];
+export const coffeeTypes = ["Cappuccino", "Flat white", "Latte", "Long black"];
+export const temperatures = ["Hot", "Warm", "Iced"];
+export const iceLevels = ["Regular ice", "Less ice", "No ice"];
+export function coffeeDescription(type = "Cappuccino", temperature = "Hot") {
+  return `${temperature} ${type}`;
+}
 export function sydneyParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: TIMEZONE,

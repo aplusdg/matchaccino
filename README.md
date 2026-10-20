@@ -23,7 +23,17 @@ npm start
 
 Set `PORT` as needed. Run from the repository root. Use a persistent, single Node server with writable `.data/` storage for the SQLite submission ledger; back it up and do not expose it publicly. Multiple instances need a shared rate limiter and durable database. The app is not a static-only deployment. Live processes need restarting after environment restoration.
 
-## Email
+## Easiest email setup: Formspree (no Node hosting or sending domain)
+
+1. Sign up at **https://formspree.io/** and verify **maddykittyw@gmail.com** or **terrinobb@gmail.com** as your recipient inbox.
+2. Create a form and copy its public endpoint, such as `https://formspree.io/f/your-form-id`. Use the real generated ID, not this example.
+3. Set the repository’s **Settings → Secrets and variables → Actions → Variables → `VITE_FORM_ENDPOINT`** to that endpoint and rerun **Publish Matchaccino**. Alternatively, set `formEndpoint` in `public/email-settings.json`, run `npm run build:pages`, and commit/push both files and `site/`. This public URL is not a secret. Never put a provider API key in the browser.
+
+Formspree is the server-side email service in this mode. The recipient stays fixed in the form dashboard; the browser supplies no recipient. Its acceptance response is required before showing success. Form activation, spam filtering and plan limits are managed by Formspree. A browser ledger prevents repeated confirmed sends; an uncertain network result is blocked from automatic retry to avoid sending twice. In that case check the inbox or Formspree submissions before creating another request. Known rejections preserve the draft and allow retry. The self-hosted option below additionally provides a durable server-side ledger and provider idempotency keys.
+
+Until a real form endpoint or email backend is connected, the public website cannot send mail. “Draft saved · not sent” means browser storage only.
+
+## Self-hosted email option: Resend
 
 Create a Resend API key and verify a sending domain in Resend. Add these **server-only** values in `.env` or your deployment’s environment settings:
 
@@ -36,8 +46,8 @@ Emails are sent immediately, including scheduled coffee requests; the Sydney dat
 
 ## Interactions
 
-- Choose Regular or Strong; “Make a little coffee” previews espresso, milk, and foam. Drag the cup gently to rotate it. Coffee requests do not require playing the preview first.
-- Choose an opening on the notepad and type. “Change opening” keeps your text. Writing expands the sheet for longer notes; “Back to desk” folds it back without losing the draft. A local-save indicator confirms drafts stored in your browser. Drag the lower-right corner at least 100px right (or diagonally down/right) and release to send; a shorter drag returns. “Send note” and keyboard activation offer the same functionality. Failed sends keep the text and allow retry. Browser local storage preserves the draft on refresh.
+- Hot Cappuccino with Regular strength is the default. Use “Fancy something different?” only to change to Flat white, Latte or Long black, or select Hot/Warm/Iced and an ice level. Choose Regular or Strong; “Make a little coffee” previews espresso, milk, and foam. Drag the cup gently to rotate it. Coffee requests do not require playing the preview first.
+- Choose an opening on the notepad and type. “Change opening” keeps your text. Writing expands the sheet for longer notes; “Back to desk” folds it back without losing the draft. A local-save indicator confirms drafts stored in your browser. Pull the lower-right corner up and left: the front sheet clips along a reflected crease, reveals its back and the fresh sheet beneath, and follows your pointer. Release after the progress bar reaches the threshold to send; shorter pulls smoothly return. A failed send unfolds the same note. The sheet turns away only after confirmed acceptance. “Send note” and keyboard activation offer the same functionality. Failed sends keep the text and allow retry. Browser local storage preserves the draft on refresh.
 - Click the fortune holder, use its keyboard-accessible button, or deliberately move back and forth over it while pressing to draw. The fortune uses a deterministic birthday + Sydney calendar date seed. It remains the same all day and updates at the next Sydney day (checked every 30 seconds).
 - **No verified Chinese almanac source is connected.** The feature is explicitly “Daily inspiration”; all birthday-based colours, numbers, and messages are for entertainment. No traditional almanac claims are made.
 - Touch, keyboard, reduced-motion preferences, and a CSS object fallback when WebGL is unavailable are supported. No sound or motion-sensor permission is required.
@@ -66,3 +76,7 @@ The included `.github/workflows/pages.yml` builds and publishes the interface on
 GitHub Pages only hosts static files. Without an email backend, the full interface, coffee animation, editable draft, and daily fortune work, while sending explicitly reports that the email service is not connected.
 
 To enable email from Pages, deploy the existing Express app on a Node 24 host with persistent `.data/` storage, set the server-only Resend credentials and `APP_ORIGIN=https://aplusdg.github.io`, then set the repository **Actions variable** `VITE_API_BASE_URL` to the backend’s public HTTPS origin (for example, your own deployment URL, without a trailing slash). Re-run the Pages workflow. This variable is public; never put an API key in a `VITE_` variable. The backend only allows the configured frontend origin and Maddy’s two approved recipient addresses. Hosting the whole app together on a Node host remains supported and does not require `VITE_API_BASE_URL` or cross-origin configuration.
+
+## Themes, reading and music
+
+Each page opening chooses one of five subtle pastel palettes (sage, powder blue, lilac, peach, butter). The previous palette is avoided when browser storage is available; fortunes remain tied to the Sydney date. Controls and body text are larger and darker for comfortable reading. The music button starts an original quiet instrumental generated locally with Web Audio; no external stream, API key or CDN is used. Music starts only after a click, can be muted immediately, and stops when the tab is hidden. Browsers restrict autoplay, so opening the page is silent.
