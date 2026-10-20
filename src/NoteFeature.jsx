@@ -375,7 +375,13 @@ export default function NoteFeature({ reduced, emailReady }) {
         {prompt !== null && (
           <div className="draft-tools">
             <span>
-              {draftSaved && text ? (
+              {state === "success" ? (
+                <>
+                  <Check size={12} /> Request sent
+                </>
+              ) : state === "sending" ? (
+                "Sending · draft kept safe"
+              ) : draftSaved && text ? (
                 <>
                   <Check size={12} /> Draft saved · not sent
                 </>
