@@ -2468,3 +2468,68 @@ footer,
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* A personal introduction and a quiet birthday celebration. */
+.intro .intro-title {
+  margin: 8px 16px 10px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--theme-deep);
+}
+.intro > .intro-story {
+  max-width: 520px;
+  margin: 0 auto 18px;
+  padding: 0 16px;
+  font-size: 16px;
+  line-height: 1.65;
+  letter-spacing: 0;
+  color: #65705e;
+}
+.birthday-wish {
+  max-width: 330px;
+  margin: 22px auto 0;
+  padding: 20px 18px;
+  text-align: center;
+  border: 1px solid var(--theme-border);
+  border-radius: 18px 18px 6px 6px;
+  background: linear-gradient(135deg, var(--theme-soft), var(--theme-background));
+}
+.birthday-date {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--theme-accent);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  line-height: 1.6;
+}
+.birthday-wish h3 {
+  margin: 10px 0 8px;
+  color: var(--theme-deep);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.birthday-wish p {
+  margin: 0;
+  color: #65705e;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.birthday-signature {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--theme-accent);
+  font-family: "Caveat", cursive;
+  font-size: 23px;
+}
+@media (max-width: 760px) {
+  .intro > .intro-story { font-size: 15px; }
+  .birthday-wish { margin-left: auto; margin-right: auto; width: calc(100% - 32px); }
+}

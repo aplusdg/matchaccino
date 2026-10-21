@@ -408,6 +408,7 @@ function FortuneFeature({ now, reduced }) {
   const drawButton = useRef(null);
   const locked = useRef(false);
   const fortune = dailyFortune(now);
+  const isBirthday = fortune.day.endsWith("-10-22");
   useEffect(() => {
     if (open) slip.current?.focus({ preventScroll: true });
   }, [open]);
@@ -452,6 +453,21 @@ function FortuneFeature({ now, reduced }) {
         title="A little luck for today"
         subtitle="A small ritual. A fresh perspective."
       />
+      {isBirthday && (
+        <aside className="birthday-wish" aria-label="A birthday wish for Kaichi">
+          <span className="birthday-date">
+            <Sparkles size={15} /> 22 OCTOBER · YOUR SPECIAL DAY
+          </span>
+          <h3>Happy birthday, Kaichi!</h3>
+          <p>
+            Wishing you warm coffee, lovely surprises, and all the little things
+            that make you smile.
+          </p>
+          <span className="birthday-signature">
+            With love, Maddy <Heart size={13} />
+          </span>
+        </aside>
+      )}
       <div className="fortune-stage">
         <button
           className={`fortune-object ${drawing ? "drawing" : ""}`}
@@ -636,7 +652,11 @@ export default function App() {
           <h1>
             Matchaccino<span className="brand-star">✧</span>
           </h1>
-          <p>A little initiative. A little intuition. Made for your day.</p>
+          <h2 className="intro-title">A personal assistant, just for Kaichi.</h2>
+          <p className="intro-story">
+            The calm of matcha. The warmth of cappuccino.<br />
+            A little spark to make your everyday feel lighter.
+          </p>
           <div className="intro-flourish">
             <i />
             <Sprout size={19} strokeWidth={1.1} />
