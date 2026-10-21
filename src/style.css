@@ -821,17 +821,6 @@ legend {
   text-align: left;
   animation: reveal 0.6s ease;
 }
-.fortune-slip:after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -5px;
-  height: 6px;
-  background:
-    linear-gradient(135deg, #fdfbf3 33%, transparent 33%) -5px 0/10px 10px,
-    linear-gradient(225deg, #fdfbf3 33%, transparent 33%) -5px 0/10px 10px;
-}
 .slip-top {
   display: flex;
   justify-content: space-between;
@@ -2583,4 +2572,9 @@ footer,
 .fortune-slip .birthday-date {
   font-size: 9px;
   letter-spacing: 0.8px;
+}
+
+/* Keep scrolled fortune text clear of decorative overlays. */
+.fortune-message {
+  font-weight: 500;
 }
