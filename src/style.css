@@ -2533,3 +2533,54 @@ footer,
   .intro > .intro-story { font-size: 15px; }
   .birthday-wish { margin-left: auto; margin-right: auto; width: calc(100% - 32px); }
 }
+
+/* Keep the three resting columns balanced; reveal the birthday with the slip. */
+@media (min-width: 761px) {
+  .feature {
+    display: flex;
+    flex-direction: column;
+  }
+  .section-heading,
+  .coffee-stage,
+  .notepad-stage,
+  .fortune-stage {
+    flex-shrink: 0;
+  }
+  .note-bottom,
+  .fortune-bottom {
+    width: 100%;
+    margin-top: auto;
+  }
+  .coffee-form {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .coffee-form > .button {
+    margin-top: auto;
+  }
+  .fortune-slip {
+    max-height: 500px;
+    margin-top: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+.fortune-feature:has(.fortune-slip) .fortune-stage {
+  display: none;
+}
+.fortune-slip .birthday-wish {
+  width: auto;
+  max-width: none;
+  margin: 16px 0 20px;
+  padding: 16px 12px;
+}
+.fortune-slip .birthday-wish h3 {
+  font-size: 28px;
+}
+.fortune-slip .birthday-date {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}

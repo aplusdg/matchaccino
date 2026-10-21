@@ -453,21 +453,6 @@ function FortuneFeature({ now, reduced }) {
         title="A little luck for today"
         subtitle="A small ritual. A fresh perspective."
       />
-      {isBirthday && (
-        <aside className="birthday-wish" aria-label="A birthday wish for Kaichi">
-          <span className="birthday-date">
-            <Sparkles size={15} /> 22 OCTOBER · YOUR SPECIAL DAY
-          </span>
-          <h3>Happy birthday, Kaichi!</h3>
-          <p>
-            Wishing you warm coffee, lovely surprises, and all the little things
-            that make you smile.
-          </p>
-          <span className="birthday-signature">
-            With love, Maddy <Heart size={13} />
-          </span>
-        </aside>
-      )}
       <div className="fortune-stage">
         <button
           className={`fortune-object ${drawing ? "drawing" : ""}`}
@@ -533,6 +518,21 @@ function FortuneFeature({ now, reduced }) {
           <p className="fortune-date">
             {formatSydney(now, { weekday: "long", year: "numeric" })} · Sydney
           </p>
+          {isBirthday && (
+            <aside className="birthday-wish" aria-label="A birthday wish for Kaichi">
+              <span className="birthday-date">
+                <Sparkles size={15} /> 22 OCTOBER · YOUR SPECIAL DAY
+              </span>
+              <h3>Happy birthday, Kaichi!</h3>
+              <p>
+                Wishing you warm coffee, lovely surprises, and all the little things
+                that make you smile.
+              </p>
+              <span className="birthday-signature">
+                With love, Maddy <Heart size={13} />
+              </span>
+            </aside>
+          )}
           <div className="lucky-row">
             <div>
               <span className="detail-label">Lucky colour</span>
